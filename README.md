@@ -1,4 +1,4 @@
-# GitHub Meta DNS Pool
+# Manage GitHub Meta DNS Pool
 
 ![Records view](docs/screenshots/02-records.png)
 
