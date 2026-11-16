@@ -16,7 +16,7 @@ Supported DNS targets:
 
 ## Features
 
-- Browser UI (vanilla JS) with login, records, targets, logs, a live pool preview and "Rotate now".
+- Browser UI (vanilla JS) with login, targets, records, logs, a live pool preview and "Rotate now".
 - Selectable meta sections per record. Each record can publish IPv4 (A), IPv6 (AAAA) or both.
 - Random host selection inside the CIDRs, weighted by range size, with no duplicates. Network and broadcast addresses are skipped.
 - Per-record IP count, TTL and rotation interval.
