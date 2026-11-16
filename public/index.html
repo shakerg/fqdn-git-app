@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>GitHub Meta DNS Pool</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <section id="login-view" class="card narrow" hidden>
+    <h1>GitHub Meta DNS Pool</h1>
+    <form id="login-form">
+      <label for="password">Admin password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit" class="primary">Sign in</button>
+      <p class="error" id="login-error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <h1>GitHub Meta DNS Pool</h1>
+      <nav aria-label="Sections" role="tablist">
+        <button role="tab" data-tab="records" aria-selected="true">Records</button>
+        <button role="tab" data-tab="targets" aria-selected="false">Targets</button>
+        <button role="tab" data-tab="logs" aria-selected="false">Logs</button>
+      </nav>
+      <div class="meta-info">
+        <span id="meta-status">Meta: loading…</span>
+        <button id="meta-refresh" type="button">Refresh meta</button>
+        <button id="logout" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+
+      <!-- Records -->
+      <section id="tab-records" role="tabpanel" class="tab">
+        <div class="section-head">
+          <h2>DNS records</h2>
+          <button type="button" class="primary" id="new-record">New record</button>
+        </div>
+        <div class="table-wrap">
+          <table id="records-table">
+            <thead><tr>
+              <th scope="col">Name</th><th scope="col">Target</th><th scope="col">Sections</th>
+              <th scope="col">IPs (current)</th><th scope="col">TTL / Rotate</th><th scope="col">Status</th><th scope="col"><span class="sr">Actions</span></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="empty" id="records-empty" hidden>No records yet. Add a target, then create a record.</p>
+      </section>
+
+      <!-- Targets -->
+      <section id="tab-targets" role="tabpanel" class="tab" hidden>
+        <div class="section-head">
+          <h2>DNS targets</h2>
+          <button type="button" class="primary" id="new-target">New target</button>
+        </div>
+        <div class="table-wrap">
+          <table id="targets-table">
+            <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Zone</th><th scope="col">Details</th><th scope="col"><span class="sr">Actions</span></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="empty" id="targets-empty" hidden>No targets configured.</p>
+      </section>
+
+      <!-- Logs -->
+      <section id="tab-logs" role="tabpanel" class="tab" hidden>
+        <div class="section-head">
+          <h2>Rotation log</h2>
+          <button type="button" id="reload-logs">Reload</button>
+        </div>
+        <div class="table-wrap">
+          <table id="logs-table">
+            <thead><tr><th scope="col">Time</th><th scope="col">Record</th><th scope="col">Result</th><th scope="col">IPs / message</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Record dialog -->
+  <dialog id="record-dialog" aria-labelledby="record-dialog-title">
+    <form id="record-form" method="dialog">
+      <h2 id="record-dialog-title">Record</h2>
+      <div class="grid2">
+        <div>
+          <label for="r-name">Name (relative to zone)</label>
+          <input id="r-name" name="name" required placeholder="github-web" pattern="@|[A-Za-z0-9_]([A-Za-z0-9_\-]*[A-Za-z0-9])?(\.[A-Za-z0-9_]([A-Za-z0-9_\-]*[A-Za-z0-9])?)*">
+        </div>
+        <div>
+          <label for="r-target">Target</label>
+          <select id="r-target" name="targetId" required></select>
+        </div>
+      </div>
+      <fieldset>
+        <legend>GitHub meta sections</legend>
+        <div id="r-sections" class="sections"></div>
+      </fieldset>
+      <div class="grid4">
+        <div>
+          <label for="r-families">IP family</label>
+          <select id="r-families" name="families">
+            <option value="v4">IPv4 (A)</option>
+            <option value="v6">IPv6 (AAAA)</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div><label for="r-count">IPs to publish</label><input id="r-count" name="count" type="number" min="1" value="2" required></div>
+        <div><label for="r-ttl">TTL (s)</label><input id="r-ttl" name="ttl" type="number" min="60" value="300" required></div>
+        <div><label for="r-interval">Rotate every (s)</label><input id="r-interval" name="intervalSec" type="number" min="60" value="3600" required></div>
+      </div>
+      <label class="check"><input id="r-enabled" name="enabled" type="checkbox" checked> Enabled (rotate on schedule)</label>
+      <div class="preview" id="r-preview" aria-live="polite"></div>
+      <p class="error" id="record-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" id="r-preview-btn">Preview</button>
+        <span class="spacer"></span>
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Save &amp; publish</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Target dialog -->
+  <dialog id="target-dialog" aria-labelledby="target-dialog-title">
+    <form id="target-form" method="dialog">
+      <h2 id="target-dialog-title">Target</h2>
+      <div class="grid2">
+        <div>
+          <label for="t-type">Type</label>
+          <select id="t-type" name="type">
+            <option value="bind9">BIND9 (RFC 2136 + TSIG)</option>
+            <option value="cloudflare">Cloudflare (public zone)</option>
+            <option value="azure">Azure DNS (private or public)</option>
+          </select>
+        </div>
+        <div><label for="t-name">Display name</label><input id="t-name" name="name" required maxlength="64"></div>
+      </div>
+      <label for="t-zone">Zone</label>
+      <input id="t-zone" name="zone" required placeholder="internal.example.com">
+
+      <div data-type="bind9" class="type-fields">
+        <div class="grid2">
+          <div>
+            <label for="b-vis">Zone visibility</label>
+            <select id="b-vis" data-cfg="visibility">
+              <option value="private">Private (internal resolvers)</option>
+              <option value="public">Public (authoritative on the internet)</option>
+            </select>
+          </div>
+          <div></div>
+          <div><label for="b-server">Server</label><input id="b-server" data-cfg="server" placeholder="10.0.0.53"></div>
+          <div><label for="b-port">Port</label><input id="b-port" data-cfg="port" type="number" value="53"></div>
+          <div><label for="b-keyname">TSIG key name</label><input id="b-keyname" data-cfg="tsigKeyName" placeholder="dnspool-key"></div>
+          <div>
+            <label for="b-alg">TSIG algorithm</label>
+            <select id="b-alg" data-cfg="tsigAlgorithm">
+              <option>hmac-sha256</option><option>hmac-sha512</option><option>hmac-sha384</option><option>hmac-sha224</option><option>hmac-sha1</option><option>hmac-md5</option>
+            </select>
+          </div>
+        </div>
+        <label for="b-secret">TSIG secret (base64)</label>
+        <input id="b-secret" data-cfg="tsigSecret" data-secret type="password" autocomplete="off">
+        <label class="check"><input id="b-tcp" data-cfg="useTcp" type="checkbox"> Use TCP</label>
+      </div>
+
+      <div data-type="cloudflare" class="type-fields" hidden>
+        <label for="c-zoneid">Zone ID</label><input id="c-zoneid" data-cfg="zoneId">
+        <label for="c-token">API token (Zone:DNS:Edit)</label>
+        <input id="c-token" data-cfg="apiToken" data-secret type="password" autocomplete="off">
+        <p class="hint">Public zone: records are published on the internet as DNS-only (unproxied) once the API token and zone ID are set. Cloudflare has no private zones.</p>
+      </div>
+
+      <div data-type="azure" class="type-fields" hidden>
+        <label for="a-zonetype">Zone type</label>
+        <select id="a-zonetype" data-cfg="zoneType">
+          <option value="private">Private DNS zone (Microsoft.Network/privateDnsZones)</option>
+          <option value="public">Public DNS zone (Microsoft.Network/dnszones)</option>
+        </select>
+        <div class="grid2">
+          <div><label for="a-sub">Subscription ID</label><input id="a-sub" data-cfg="subscriptionId"></div>
+          <div><label for="a-rg">Resource group</label><input id="a-rg" data-cfg="resourceGroup"></div>
+          <div><label for="a-tenant">Tenant ID</label><input id="a-tenant" data-cfg="tenantId"></div>
+          <div><label for="a-client">Client ID</label><input id="a-client" data-cfg="clientId"></div>
+        </div>
+        <label for="a-secret">Client secret</label>
+        <input id="a-secret" data-cfg="clientSecret" data-secret type="password" autocomplete="off">
+        <p class="hint">Leave tenant/client/secret blank to use managed identity or other DefaultAzureCredential sources. Role needed: Private DNS Zone Contributor (private) or DNS Zone Contributor (public).</p>
+      </div>
+
+      <p class="error" id="target-error" role="alert"></p>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,13 @@
+node_modules
+data
+.env
+test
+docker
+*.md
+.git
+.env.*
+!.env.example
+.DS_Store
+docs/
+.playwright-mcp/
+*.sqlite*

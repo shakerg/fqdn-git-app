@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    image: github-meta-dns-pool:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - dnspool-data:/data
+
+  # Optional lab BIND9 server for testing dynamic updates:
+  #   docker compose --profile lab up -d
+  # Then add a BIND9 target: server "bind9", port 53, zone "lab.internal",
+  # TSIG key name "dnspool-key", algorithm hmac-sha256, secret = LAB_TSIG_SECRET.
+  bind9:
+    profiles: ["lab"]
+    image: ubuntu/bind9:latest
+    restart: unless-stopped
+    environment:
+      LAB_TSIG_SECRET: ${LAB_TSIG_SECRET:?set LAB_TSIG_SECRET in .env}
+    entrypoint: ["/bin/sh", "/docker/start-bind.sh"]
+    ports:
+      - "127.0.0.1:15353:53/udp"
+      - "127.0.0.1:15353:53/tcp"
+    volumes:
+      - ./docker/bind9:/docker:ro
+
+volumes:
+  dnspool-data:

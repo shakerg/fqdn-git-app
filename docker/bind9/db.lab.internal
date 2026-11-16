@@ -1,0 +1,9 @@
+$TTL 300
+@   IN SOA ns1.lab.internal. hostmaster.lab.internal. (
+        1       ; serial
+        3600    ; refresh
+        600     ; retry
+        86400   ; expire
+        60 )    ; minimum
+    IN NS ns1.lab.internal.
+ns1 IN A  127.0.0.1
